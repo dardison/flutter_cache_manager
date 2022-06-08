@@ -58,6 +58,8 @@ abstract class FileServiceResponse {
 
   /// Used to save the file on the storage, includes a dot. For example '.jpeg'
   String get fileExtension;
+
+  Future<String> get streamLikeString;
 }
 
 /// Basic implementation of a [FileServiceResponse] for http requests.
@@ -74,6 +76,10 @@ class HttpGetResponse implements FileServiceResponse {
   String? _header(String name) {
     return _response.headers[name];
   }
+
+  @override
+  Future<String> get streamLikeString => _response.stream.bytesToString();
+
 
   @override
   Stream<List<int>> get content => _response.stream;

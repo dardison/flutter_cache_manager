@@ -33,4 +33,7 @@ class MockFileFetcherResponse implements FileServiceResponse {
 
   @override
   int? get contentLength => _contentLength;
+  
+  @override
+  Future<String> get streamLikeString => throw UnimplementedError();
 }

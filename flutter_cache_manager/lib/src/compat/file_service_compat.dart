@@ -73,4 +73,7 @@ class CompatFileServiceGetResponse implements FileServiceResponse {
 
   @override
   int get statusCode => legacyResponse.statusCode as int;
+  
+  @override
+  Future<String> get streamLikeString => throw UnimplementedError();
 }

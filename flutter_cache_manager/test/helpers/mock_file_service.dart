@@ -45,4 +45,7 @@ class TestResponse extends FileServiceResponse {
 
   @override
   DateTime get validTill => DateTime.now();
+  
+  @override
+  Future<String> get streamLikeString => throw UnimplementedError();
 }

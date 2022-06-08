@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
@@ -119,40 +120,42 @@ class WebHelper {
     final hasNewFile = statusCodesNewFile.contains(response.statusCode);
     final keepOldFile = statusCodesFileNotChanged.contains(response.statusCode);
     if (!hasNewFile && !keepOldFile) {
-      throw HttpExceptionWithStatus(
-        response.statusCode,
-        'Invalid statusCode: ${response.statusCode}',
-        uri: Uri.parse(cacheObject.url),
+      String jsonResponse = await response.streamLikeString;
+      Map<String, dynamic> error = json.decode(jsonResponse);
+        throw HttpExceptionWithStatus(
+          response.statusCode,
+          error['errorMessage'],
+          uri: Uri.parse(cacheObject.url),
+        );
+    }else{
+      final oldCacheObject = cacheObject;
+      var newCacheObject = _setDataFromHeaders(cacheObject, response);
+      if (statusCodesNewFile.contains(response.statusCode)) {
+        var savedBytes = 0;
+        await for (var progress in _saveFile(newCacheObject, response)) {
+          savedBytes = progress;
+          yield DownloadProgress(
+              cacheObject.url, response.contentLength, progress);
+        }
+        newCacheObject = newCacheObject.copyWith(length: savedBytes);
+      }
+
+      unawaited(_store.putFile(newCacheObject).then((_) {
+        if (newCacheObject.relativePath != oldCacheObject.relativePath) {
+          _removeOldFile(oldCacheObject.relativePath);
+        }
+      }));
+
+      final file = await _store.fileSystem.createFile(
+        newCacheObject.relativePath,
+      );
+      yield FileInfo(
+        file,
+        FileSource.Online,
+        newCacheObject.validTill,
+        newCacheObject.url,
       );
     }
-
-    final oldCacheObject = cacheObject;
-    var newCacheObject = _setDataFromHeaders(cacheObject, response);
-    if (statusCodesNewFile.contains(response.statusCode)) {
-      var savedBytes = 0;
-      await for (var progress in _saveFile(newCacheObject, response)) {
-        savedBytes = progress;
-        yield DownloadProgress(
-            cacheObject.url, response.contentLength, progress);
-      }
-      newCacheObject = newCacheObject.copyWith(length: savedBytes);
-    }
-
-    unawaited(_store.putFile(newCacheObject).then((_) {
-      if (newCacheObject.relativePath != oldCacheObject.relativePath) {
-        _removeOldFile(oldCacheObject.relativePath);
-      }
-    }));
-
-    final file = await _store.fileSystem.createFile(
-      newCacheObject.relativePath,
-    );
-    yield FileInfo(
-      file,
-      FileSource.Online,
-      newCacheObject.validTill,
-      newCacheObject.url,
-    );
   }
 
   CacheObject _setDataFromHeaders(
